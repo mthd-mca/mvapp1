@@ -1,0 +1,89 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "675711/spring-swarm-app"
+        DOCKERHUB_CREDENTIALS = "dockerhub"
+
+        VAGRANT_MANAGER = "manager1"
+        SERVICE_NAME = "spring_service"
+    }
+
+    stages {
+
+        stage("Clone from GitHub") {
+            steps {
+                echo "Cloning Spring Boot project..."
+                git branch: "main",
+                    url: "https://github.com/mthd-mca/mvapp1.git"
+            }
+        }
+
+        stage("Build Maven Package") {
+            steps {
+                echo "Building Spring Boot JAR using Maven..."
+                sh "mvn clean package -DskipTests"
+            }
+        }
+
+        stage("Build Docker Image") {
+            steps {
+                echo "Building Docker Image..."
+                script {
+                    dockerImage = docker.build("${IMAGE_NAME}:latest")
+                }
+            }
+        }
+
+        stage("Push Image to DockerHub") {
+            steps {
+                echo "Pushing image to DockerHub..."
+                script {
+                    docker.withRegistry("", DOCKERHUB_CREDENTIALS) {
+                        dockerImage.push("latest")
+                    }
+                }
+            }
+        }
+
+        stage("Deploy on Docker Swarm (Vagrant Manager)") {
+            steps {
+                echo "Deploying Spring Boot Service inside Vagrant Swarm Manager..."
+
+                sh """
+                vagrant ssh ${VAGRANT_MANAGER} -c '
+                    docker service rm ${SERVICE_NAME} || true
+
+                    docker service create \
+                      --name ${SERVICE_NAME} \
+                      --replicas 3 \
+                      -p 8080:8080 \
+                      ${IMAGE_NAME}:latest
+                '
+                """
+            }
+        }
+
+        stage("Verify Deployment") {
+            steps {
+                echo "Verifying Swarm Service..."
+
+                sh """
+                vagrant ssh ${VAGRANT_MANAGER} -c '
+                    docker service ls
+                    docker service ps ${SERVICE_NAME}
+                '
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Spring Boot Maven CI/CD Pipeline Executed Successfully on Docker Swarm"
+        }
+        failure {
+            echo "Pipeline Failed"
+        }
+    }
+}
