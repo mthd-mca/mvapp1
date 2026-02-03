@@ -49,7 +49,7 @@ pipeline {
         stage("Deploy on Docker Swarm (Vagrant Manager)") {
             steps {
                 echo "Deploying Spring Boot Service inside Vagrant Swarm Manager..."
-                sh "vargant up"
+                sh "vagrant up"
                 sh """
                 vagrant ssh manager1 -c "docker service create ..."
 
