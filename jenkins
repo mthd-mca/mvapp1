@@ -51,8 +51,7 @@ pipeline {
                 echo "Deploying Spring Boot Service inside Vagrant Swarm Manager..."
 
                 sh """
-                vagrant ssh ${VAGRANT_MANAGER} -c '
-                    docker service rm ${SERVICE_NAME} || true
+                sudo -u mthd2412 vagrant ssh manager1 -c "docker service create ..."
 
                     docker service create \
                       --name ${SERVICE_NAME} \
